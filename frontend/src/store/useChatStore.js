@@ -37,6 +37,12 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
+      // If it’s a poll, we don’t hit backend, just add it directly
+      if (messageData.type === "poll") {
+        set({ messages: [...messages, messageData] });
+        return;
+      }
+      // Otherwise normal text/image goes to backend
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`,
         messageData
@@ -47,13 +53,18 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // New function to add message manually (used by polls)
+  addMessage: (messageData) => {
+    const { messages } = get();
+    set({ messages: [...messages, messageData] });
+  },
+
   subscribeToMessages: () => {
     const { selectedUser } = get();
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
 
-   
     socket.on("newMessage", (newMessage) => {
       if (newMessage.senderId !== selectedUser._id) return;
       set({ messages: [...get().messages, newMessage] });
@@ -65,7 +76,6 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
   },
 
-  
   setSelectedUser: (selectedUser) => {
     set({ selectedUser });
   },
